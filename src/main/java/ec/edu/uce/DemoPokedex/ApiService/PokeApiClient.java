@@ -58,23 +58,13 @@ public class PokeApiClient {
 
 
             // Habilidades
-            List<Ability> abilities = new ArrayList<>();
-            for (JsonNode abilityNode : root.get("abilities")) {
-                Ability ability = new Ability();
-                ability.setName(abilityNode.get("ability").get("name").asText());
-                ability.setHidden(abilityNode.get("is_hidden").asBoolean());
-                abilities.add(ability);
-            }
-            pokemon.setAbilities(abilities);
-
-            // Movimientos
-            List<Move> moves = new ArrayList<>();
-            for (JsonNode moveNode : root.get("moves")) {
-                Move move = new Move();
-                move.setName(moveNode.get("move").get("name").asText());
-                moves.add(move);
-            }
-            pokemon.setMoves(moves);
+//            List<Ability> abilities = new ArrayList<>();
+//            for (JsonNode abilityNode : root.get("abilities")) {
+//                Ability ability = new Ability();
+//                ability.setName(abilityNode.get("ability").get("name").asText());
+//                abilities.add(ability);
+//            }
+//            pokemon.setAbilities(abilities);
 
             // Tipos
             List<Type> types = new ArrayList<>();
@@ -111,63 +101,130 @@ public class PokeApiClient {
         }
     }
 
-    public List<Evolution> getAllEvolutions() {
+    public List<Type> getAllTypes() {
         try {
-            String url = BASE_URL + "evolution-chain?limit=500&offset=0";
+            String url = BASE_URL + "type/";
             String response = restTemplate.getForObject(url, String.class);
 
             JsonNode root = objectMapper.readTree(response);
-            List<Evolution> evolutions = new ArrayList<>();
+            List<Type> types = new ArrayList<>();
 
             for (JsonNode result : root.get("results")) {
-                String evolutionUrl = result.get("url").asText();
-                List<Evolution> chainEvolutions = getEvolutionChainByUrl(evolutionUrl);
-                evolutions.addAll(chainEvolutions);
+                Type type = new Type();
+                type.setName(result.get("name").asText());
+                types.add(type);
             }
 
-            return evolutions;
+            return types;
         } catch (Exception e) {
-            throw new RuntimeException("Error fetching all evolutions: " + e.getMessage(), e);
+            throw new RuntimeException("Error fetching all types: " + e.getMessage(), e);
         }
     }
 
-    // Metodo para obtener la cadena de evolución por url
-    public List<Evolution> getEvolutionChainByUrl(String url) {
-        try {
-            String response = restTemplate.getForObject(url, String.class);
+//    public List<Evolution> getAllEvolutions() {
+//        try {
+//            String url = BASE_URL + "evolution-chain?limit=500&offset=0";
+//            String response = restTemplate.getForObject(url, String.class);
+//
+//            JsonNode root = objectMapper.readTree(response);
+//            List<Evolution> evolutions = new ArrayList<>();
+//
+//            for (JsonNode result : root.get("results")) {
+//                String evolutionUrl = result.get("url").asText();
+//                List<Evolution> chainEvolutions = getEvolutionChainByUrl(evolutionUrl);
+//                evolutions.addAll(chainEvolutions);
+//            }
+//
+//            return evolutions;
+//        } catch (Exception e) {
+//            throw new RuntimeException("Error fetching all evolutions: " + e.getMessage(), e);
+//        }
+//    }
+//
+//    // Metodo para obtener la cadena de evolución por url
+//    public List<Evolution> getEvolutionChainByUrl(String url) {
+//        try {
+//            String response = restTemplate.getForObject(url, String.class);
+//
+//            // Parseo de la respuesta JSON
+//            JsonNode root = objectMapper.readTree(response);
+//            JsonNode chain = root.get("chain");
+//
+//            // Procesar la cadena de evolución recursivamente
+//            List<Evolution> evolutions = new ArrayList<>();
+//            processEvolutionChain(chain, evolutions);
+//
+//            return evolutions;
+//
+//        } catch (Exception e) {
+//            throw new RuntimeException("Error fetching Evolution Chain data: " + e.getMessage(), e);
+//        }
+//    }
+//
+//    private void processEvolutionChain(JsonNode chainNode, List<Evolution> evolutions) {
+//        if (chainNode == null) return;
+//
+//        Evolution evolution = new Evolution();
+//        evolution.setSpeciesName(chainNode.get("species").get("name").asText());
+//
+//        if (chainNode.has("evolution_details") && chainNode.get("evolution_details").size() > 0) {
+//            JsonNode details = chainNode.get("evolution_details").get(0);
+//        }
+//
+//        evolutions.add(evolution);
+//
+//        // Procesar las evoluciones subsecuentes
+//        for (JsonNode next : chainNode.get("evolves_to")) {
+//            processEvolutionChain(next, evolutions);
+//        }
+//    }
+public String getEvolutionChainUrl(Long pokemonId) {
+    try {
+        String speciesUrl = BASE_URL + "pokemon-species/" + pokemonId + "/";
+        String response = restTemplate.getForObject(speciesUrl, String.class);
 
-            // Parseo de la respuesta JSON
-            JsonNode root = objectMapper.readTree(response);
-            JsonNode chain = root.get("chain");
-
-            // Procesar la cadena de evolución recursivamente
-            List<Evolution> evolutions = new ArrayList<>();
-            processEvolutionChain(chain, evolutions);
-
-            return evolutions;
-
-        } catch (Exception e) {
-            throw new RuntimeException("Error fetching Evolution Chain data: " + e.getMessage(), e);
-        }
+        JsonNode root = objectMapper.readTree(response);
+        return root.get("evolution_chain").get("url").asText();
+    } catch (Exception e) {
+        throw new RuntimeException("Error fetching evolution chain URL for Pokémon ID: " + pokemonId, e);
     }
+}
 
-    private void processEvolutionChain(JsonNode chainNode, List<Evolution> evolutions) {
+    public List<Long> getEvolutionIdsByUrl(String url) {
+    try {
+        String response = restTemplate.getForObject(url, String.class);
+        JsonNode root = objectMapper.readTree(response);
+        JsonNode chain = root.get("chain");
+
+        List<Long> evolutionIds = new ArrayList<>();
+        extractEvolutionIds(chain, evolutionIds);
+
+        return evolutionIds;
+    } catch (Exception e) {
+        throw new RuntimeException("Error fetching evolution IDs: " + e.getMessage(), e);
+    }
+}
+
+    private void extractEvolutionIds(JsonNode chainNode, List<Long> evolutionIds) {
         if (chainNode == null) return;
 
-        Evolution evolution = new Evolution();
-        evolution.setSpeciesName(chainNode.get("species").get("name").asText());
-
-        if (chainNode.has("evolution_details") && chainNode.get("evolution_details").size() > 0) {
-            JsonNode details = chainNode.get("evolution_details").get(0);
-            evolution.setEvolutiontrigger(details.get("trigger").get("name").asText());
-            evolution.setMinLevel(details.has("min_level") ? details.get("min_level").asInt() : null);
+        String speciesUrl = chainNode.get("species").get("url").asText();
+        Long speciesId = extractIdFromUrl(speciesUrl);
+        if (speciesId != null) {
+            evolutionIds.add(speciesId);
         }
 
-        evolutions.add(evolution);
-
-        // Procesar las evoluciones subsecuentes
         for (JsonNode next : chainNode.get("evolves_to")) {
-            processEvolutionChain(next, evolutions);
+            extractEvolutionIds(next, evolutionIds);
+        }
+    }
+
+    private Long extractIdFromUrl(String url) {
+        String[] parts = url.split("/");
+        try {
+            return Long.parseLong(parts[parts.length - 1]);
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 

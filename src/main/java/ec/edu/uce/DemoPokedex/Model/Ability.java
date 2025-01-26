@@ -22,9 +22,6 @@ public class Ability {
     @Column(unique = true, nullable = false)
     private String name;
 
-    @Column
-    private boolean isHidden;
-
     @ManyToMany(mappedBy = "abilities")
     private List<Pokemon> pokemon;
 
@@ -32,7 +29,6 @@ public class Ability {
     public String toString() {
         return "Ability{" +
                 "name='" + name + '\'' +
-                ", isHidden=" + isHidden +
                 '}';
     }
 }
